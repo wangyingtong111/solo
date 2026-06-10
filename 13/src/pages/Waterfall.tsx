@@ -3,11 +3,20 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from '@/store/useAppStore';
-import { BarChart3, RotateCcw, Settings, Layers } from 'lucide-react';
+import { BarChart3, RotateCcw, Settings, Layers, Activity } from 'lucide-react';
 
 const TIME_STEPS = 30;
-const FREQ_BINS = 50;
+const MAX_FREQ_BINS = 512;
 const HEIGHT_SCALE = 12;
+const SAMPLE_RATE = 5000;
+const FFT_SIZE = 1024;
+const FREQ_RESOLUTION = SAMPLE_RATE / FFT_SIZE;
+
+const FREQ_RANGES = [
+  { label: '0-500Hz', bins: 103, width: 35 },
+  { label: '0-1250Hz', bins: 256, width: 45 },
+  { label: '0-2500Hz', bins: 512, width: 55 },
+];
 
 interface WaterfallData {
   spectrum: number[];
@@ -18,15 +27,19 @@ export default function WaterfallPage() {
   const { sensorStates, activeSensorId, sensors } = useAppStore();
   const [waterfallData, setWaterfallData] = useState<WaterfallData[]>([]);
   const [colorMode, setColorMode] = useState<'spectrum' | 'heat'>('spectrum');
+  const [freqRangeIdx, setFreqRangeIdx] = useState(1);
 
   const state = sensorStates[activeSensorId];
   const activeSensor = sensors.find(s => s.id === activeSensorId);
+  const freqRange = FREQ_RANGES[freqRangeIdx];
+  const freqBins = freqRange.bins;
+  const maxFreq = freqBins * FREQ_RESOLUTION;
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (state?.features?.spectrum) {
         setWaterfallData(prev => {
-          const spec = state.features!.spectrum.slice(0, FREQ_BINS);
+          const spec = state.features!.spectrum.slice(0, freqBins);
           const newData = [
             { spectrum: spec, timestamp: Date.now() },
             ...prev,
@@ -37,7 +50,7 @@ export default function WaterfallPage() {
     }, 200);
 
     return () => clearInterval(interval);
-  }, [state?.features?.spectrum]);
+  }, [state?.features?.spectrum, freqBins]);
 
   const handleReset = () => {
     setWaterfallData([]);
@@ -54,13 +67,21 @@ export default function WaterfallPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleReset}
-              className="btn-tech flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              重置
-            </button>
+            <div className="flex items-center gap-1 bg-slate-800/60 rounded-lg p-1 border border-slate-700/50">
+              {FREQ_RANGES.map((range, idx) => (
+                <button
+                  key={range.label}
+                  onClick={() => setFreqRangeIdx(idx)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                    freqRangeIdx === idx
+                      ? 'bg-tech-cyan/20 text-tech-cyan border border-tech-cyan/30'
+                      : 'text-gray-400 hover:text-white hover:bg-slate-700/50'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={() => setColorMode(colorMode === 'spectrum' ? 'heat' : 'spectrum')}
               className="btn-tech flex items-center gap-2"
@@ -68,16 +89,23 @@ export default function WaterfallPage() {
               <Layers className="w-4 h-4" />
               {colorMode === 'spectrum' ? '光谱色' : '热力色'}
             </button>
+            <button
+              onClick={handleReset}
+              className="btn-tech flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              重置
+            </button>
           </div>
         </div>
 
         <div className="panel-glow overflow-hidden rounded-lg" style={{ height: 'calc(100vh - 180px)' }}>
           <Canvas
-            camera={{ position: [28, 22, 28], fov: 45 }}
+            camera={{ position: [38, 26, 38], fov: 45 }}
             gl={{ antialias: true, alpha: false }}
           >
             <color attach="background" args={['#050d18']} />
-            <fog attach="fog" args={['#050d18', 25, 70]} />
+            <fog attach="fog" args={['#050d18', 35, 90]} />
 
             <ambientLight intensity={0.3} />
             <pointLight position={[15, 25, 15]} intensity={1.0} color="#00d4ff" />
@@ -86,21 +114,21 @@ export default function WaterfallPage() {
 
             <Grid
               position={[0, -0.5, 0]}
-              args={[60, 60]}
+              args={[80, 60]}
               cellSize={1}
               cellThickness={0.5}
               cellColor="#1e3a5f"
               sectionSize={5}
               sectionThickness={1}
               sectionColor="#00d4ff"
-              fadeDistance={50}
+              fadeDistance={70}
               fadeStrength={1}
               followCamera={false}
             />
 
-            <WaterfallBars data={waterfallData} colorMode={colorMode} />
+            <WaterfallBars data={waterfallData} colorMode={colorMode} freqBins={freqBins} graphWidth={freqRange.width} />
 
-            <AxisLabels />
+            <AxisLabels maxFreq={maxFreq} />
 
             <OrbitControls
               enableDamping
@@ -113,10 +141,10 @@ export default function WaterfallPage() {
         </div>
 
         <div className="mt-4 grid grid-cols-4 gap-4">
-          <InfoCard icon={BarChart3} label="频率范围" value="0 - 2500 Hz" />
+          <InfoCard icon={BarChart3} label="频率范围" value={`0 - ${maxFreq.toFixed(0)} Hz`} />
           <InfoCard icon={Settings} label="时间窗口" value={`${(TIME_STEPS * 0.2).toFixed(1)}s`} />
-          <InfoCard icon={Layers} label="频谱分辨率" value={`${FREQ_BINS} bins`} />
-          <InfoCard icon={RotateCcw} label="刷新率" value="5 Hz" />
+          <InfoCard icon={Activity} label="频谱分辨率" value={`${FREQ_RESOLUTION.toFixed(2)} Hz/bin`} />
+          <InfoCard icon={Layers} label="频谱线数" value={`${freqBins} lines`} />
         </div>
       </div>
     </div>
@@ -135,22 +163,29 @@ function InfoCard({ icon: Icon, label, value }: { icon: any; label: string; valu
   );
 }
 
-function WaterfallBars({ data, colorMode }: { data: WaterfallData[]; colorMode: 'spectrum' | 'heat' }) {
+function WaterfallBars({ data, colorMode, freqBins, graphWidth }: {
+  data: WaterfallData[];
+  colorMode: 'spectrum' | 'heat';
+  freqBins: number;
+  graphWidth: number;
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const colorObj = useMemo(() => new THREE.Color(), []);
 
-  const totalBars = TIME_STEPS * FREQ_BINS;
+  const totalBars = TIME_STEPS * freqBins;
+  const barWidth = Math.max(0.08, (graphWidth / freqBins) * 0.7);
+  const barDepth = 0.4;
 
   const barsData = useMemo(() => {
     const result: { x: number; y: number; z: number; height: number; color: string }[] = [];
 
     for (let t = 0; t < TIME_STEPS; t++) {
-      const spectrumData = data[t]?.spectrum || new Array(FREQ_BINS).fill(0.01);
-      const maxVal = Math.max(...spectrumData, 0.001);
+      const spectrumData = data[t]?.spectrum || new Array(freqBins).fill(0.01);
+      const maxVal = Math.max(...spectrumData.slice(0, freqBins), 0.001);
 
-      for (let f = 0; f < FREQ_BINS; f++) {
-        const x = (f / FREQ_BINS - 0.5) * 30;
+      for (let f = 0; f < freqBins; f++) {
+        const x = (f / freqBins - 0.5) * graphWidth;
         const z = (t / TIME_STEPS - 0.5) * 25;
         const value = spectrumData[f] || 0.01;
         const normalized = value / maxVal;
@@ -158,7 +193,7 @@ function WaterfallBars({ data, colorMode }: { data: WaterfallData[]; colorMode: 
 
         let color: string;
         if (colorMode === 'spectrum') {
-          const hue = 210 - (f / FREQ_BINS) * 180 + normalized * 30;
+          const hue = 210 - (f / freqBins) * 180 + normalized * 30;
           color = `hsl(${Math.max(0, Math.min(360, hue))}, 90%, 55%)`;
         } else {
           if (normalized > 0.85) {
@@ -179,7 +214,7 @@ function WaterfallBars({ data, colorMode }: { data: WaterfallData[]; colorMode: 
     }
 
     return result;
-  }, [data, colorMode]);
+  }, [data, colorMode, freqBins, graphWidth, barWidth]);
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -187,7 +222,7 @@ function WaterfallBars({ data, colorMode }: { data: WaterfallData[]; colorMode: 
     for (let i = 0; i < totalBars; i++) {
       const bar = barsData[i] || { x: 0, y: 0.025, z: 0, height: 0.05, color: '#111' };
       dummy.position.set(bar.x, bar.y, bar.z);
-      dummy.scale.set(0.45, bar.height, 0.4);
+      dummy.scale.set(barWidth, bar.height, barDepth);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
 
@@ -215,7 +250,7 @@ function WaterfallBars({ data, colorMode }: { data: WaterfallData[]; colorMode: 
   );
 }
 
-function AxisLabels() {
+function AxisLabels({ maxFreq }: { maxFreq: number }) {
   return (
     <group position={[0, 0, 0]}>
       <Html position={[0, -0.3, -14]} center style={{ pointerEvents: 'none' }}>
@@ -223,12 +258,12 @@ function AxisLabels() {
           时间 →
         </div>
       </Html>
-      <Html position={[-16, -0.3, 0]} center style={{ pointerEvents: 'none' }}>
+      <Html position={[-22, -0.3, 0]} center style={{ pointerEvents: 'none' }}>
         <div className="text-tech-cyan/80 text-xs font-display whitespace-nowrap">
-          ← 频率
+          ← 频率 (0 - {maxFreq.toFixed(0)} Hz)
         </div>
       </Html>
-      <Html position={[-15, 8, -15]} center style={{ pointerEvents: 'none' }}>
+      <Html position={[-20, 8, -15]} center style={{ pointerEvents: 'none' }}>
         <div className="text-green-400/80 text-xs font-display whitespace-nowrap">
           幅值 ↑
         </div>
