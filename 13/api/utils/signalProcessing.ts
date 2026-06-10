@@ -171,13 +171,11 @@ export function highPassFilter(signal: number[], sampleRate: number, cutoffFreq:
   const RC = 1 / (2 * Math.PI * cutoffFreq);
   const alpha = RC / (RC + dt);
 
-  let prevX = signal[0];
-  let prevY = 0;
+  let vc = 0;
 
   for (let i = 0; i < n; i++) {
-    result[i] = alpha * (prevY + signal[i] - prevX);
-    prevY = result[i];
-    prevX = signal[i];
+    vc = alpha * vc + (1 - alpha) * signal[i];
+    result[i] = signal[i] - vc;
   }
 
   return result;
