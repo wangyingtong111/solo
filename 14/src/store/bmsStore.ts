@@ -156,7 +156,7 @@ export const useBmsStore = create<BmsStore>((set, get) => ({
 
       const newCells = s.simulator.getCells();
       const newPack = s.simulator.getPack();
-      const newSohResults = s.sohEngine.estimateAllCells(newCells);
+      const newSohResults = s.sohEngine.estimateAllCells(newCells, s.isCharging);
       const newBalanceCommands = s.balanceEngine.generateCommands(newCells);
 
       const newIcaBuffer = newCells.map((cell, idx) => {

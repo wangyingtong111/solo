@@ -231,22 +231,37 @@ export class BmsSimulator {
       const cell = this.cells[i];
       const cellHistory: SOHHistoryPoint[] = [];
       let actualSoh = 100;
+      let estimatedSoh = 100;
+      let errorBias = (Math.random() - 0.5) * 0.8;
 
       for (let c = 0; c < cycles; c++) {
         const decayPerCycle = 0.002 + Math.random() * 0.001;
         actualSoh = Math.max(75, actualSoh - decayPerCycle);
-        const errorFactor = (Math.random() - 0.5) * 3.6;
-        const estimatedSoh = Math.max(70, Math.min(100, actualSoh + errorFactor));
-        const error = estimatedSoh - actualSoh;
-        const ciLower = estimatedSoh - 1.2;
-        const ciUpper = estimatedSoh + 1.2;
+
+        const measurementNoise = (Math.random() - 0.5) * 0.6;
+        errorBias = errorBias * 0.92 + measurementNoise * 0.08;
+
+        const targetError = errorBias;
+        const clampedError = Math.max(-1.8, Math.min(1.8, targetError));
+
+        const rawEst = actualSoh + clampedError;
+        estimatedSoh = estimatedSoh * 0.7 + rawEst * 0.3;
+
+        const finalError = estimatedSoh - actualSoh;
+        if (Math.abs(finalError) > 1.8) {
+          estimatedSoh = actualSoh + (finalError > 0 ? 1.8 : -1.8);
+        }
+
+        const ciBase = 0.8 + (c / cycles) * 0.6;
+        const ciLower = estimatedSoh - ciBase;
+        const ciUpper = estimatedSoh + ciBase;
 
         cellHistory.push({
           timestamp: baseTime + c * 3600 * 1000,
           cellId: cell.cellId,
           sohEstimated: estimatedSoh,
           sohActual: actualSoh,
-          error,
+          error: estimatedSoh - actualSoh,
           confidenceLower: ciLower,
           confidenceUpper: ciUpper,
         });
