@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import type { ServerMessage, ClientMessage } from '../../../shared/types';
+import type { ServerMessage, ClientMessage } from '@shared/types';
 
 const WS_URL = 'ws://localhost:3001/ws';
 

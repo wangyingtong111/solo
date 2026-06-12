@@ -7,7 +7,7 @@ import Waterfall from '@/pages/Waterfall';
 import Prediction from '@/pages/Prediction';
 import Settings from '@/pages/Settings';
 import { useAppStore } from '@/store/useAppStore';
-import type { Sensor } from '../../shared/types';
+import type { Sensor } from '@shared/types';
 
 function AppContent() {
   const { setSensors } = useAppStore();

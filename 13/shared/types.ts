@@ -35,14 +35,30 @@ export interface AlertData {
   message: string;
 }
 
+export interface TrendPoint {
+  time: number;
+  health: number;
+  upper: number;
+  lower: number;
+}
+
+export interface PredictionInterval {
+  upperBound: number;
+  lowerBound: number;
+  rulUncertainty: number;
+}
+
 export interface PredictionData {
   type: 'prediction';
   sensorId: number;
   rul: number;
   healthIndex: number;
   confidence: number;
-  trend: number[];
+  trend: TrendPoint[];
   errorAt70pct: number;
+  fitR2?: number;
+  degradationMode?: 'exponential' | 'linear' | 'power';
+  predictionInterval?: PredictionInterval;
 }
 
 export type ServerMessage = WaveformData | FeatureData | AlertData | PredictionData;

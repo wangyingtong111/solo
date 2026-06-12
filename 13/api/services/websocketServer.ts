@@ -60,19 +60,19 @@ export function initWebSocketServer(server: HttpServer) {
   console.log('WebSocket server initialized');
 }
 
-function handleClientMessage(session: ClientMessage, message: ClientMessage) {
+function handleClientMessage(session: ClientSession, message: ClientMessage) {
   switch (message.type) {
     case 'subscribe':
       if (message.sensorIds) {
         for (const id of message.sensorIds) {
-          (session as unknown as ClientSession).subscribedSensors.add(id);
+          session.subscribedSensors.add(id);
         }
       }
       break;
     case 'unsubscribe':
       if (message.sensorIds) {
         for (const id of message.sensorIds) {
-          (session as unknown as ClientSession).subscribedSensors.delete(id);
+          session.subscribedSensors.delete(id);
         }
       }
       break;

@@ -1,7 +1,7 @@
 import { Activity, AlertTriangle, CheckCircle } from 'lucide-react';
 import WaveformChart from './WaveformChart';
 import { useAppStore } from '@/store/useAppStore';
-import type { Sensor } from '../../../../shared/types';
+import type { Sensor } from '@shared/types';
 
 interface SensorCardProps {
   sensor: Sensor;
