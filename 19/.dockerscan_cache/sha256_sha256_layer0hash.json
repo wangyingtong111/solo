@@ -1,0 +1,37 @@
+{
+  "layerDigest": "sha256:sha256:layer0hash",
+  "packages": [
+    {
+      "name": "openssl",
+      "version": "3.0.10",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "glibc",
+      "version": "2.35",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "zlib",
+      "version": "1.2.13",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "curl",
+      "version": "8.0.0",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "bash",
+      "version": "5.2.0",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    }
+  ],
+  "scanTime": "2026-06-13T06:05:11.088Z",
+  "vulnerabilityCount": 5
+}

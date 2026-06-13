@@ -1,0 +1,322 @@
+{
+  "imageName": "test-image",
+  "imageDigest": "",
+  "scanTime": "2026-06-13T06:05:11.437Z",
+  "totalLayers": 3,
+  "scannedLayers": 3,
+  "cachedLayers": 0,
+  "vulnerabilities": [
+    {
+      "id": "CVE-2024-0005",
+      "severity": "Critical",
+      "description": "Critical RCE vulnerability in bash.",
+      "packageName": "bash",
+      "packageVersion": "5.2.0",
+      "fixedVersion": "5.2.21",
+      "cvssScore": 10,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+      "cweIds": [
+        "CWE-78"
+      ],
+      "references": [
+        "https://www.gnu.org/software/bash/"
+      ],
+      "publishedDate": "2024-01-20T00:00:00Z",
+      "lastModifiedDate": "2024-01-21T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0001",
+      "severity": "Critical",
+      "description": "Critical vulnerability in OpenSSL that allows remote code execution.",
+      "packageName": "openssl",
+      "packageVersion": "3.0.10",
+      "fixedVersion": "3.0.12",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "cweIds": [
+        "CWE-119"
+      ],
+      "references": [
+        "https://www.openssl.org/news/secadv/"
+      ],
+      "publishedDate": "2024-01-01T00:00:00Z",
+      "lastModifiedDate": "2024-01-02T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0006",
+      "severity": "High",
+      "description": "High severity vulnerability in libxml2.",
+      "packageName": "libxml2",
+      "packageVersion": "2.11.0",
+      "fixedVersion": "2.11.6",
+      "cvssScore": 8.1,
+      "cweIds": [
+        "CWE-611"
+      ],
+      "publishedDate": "2024-02-01T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0002",
+      "severity": "High",
+      "description": "High severity vulnerability in glibc affecting privilege escalation.",
+      "packageName": "glibc",
+      "packageVersion": "2.35",
+      "fixedVersion": "2.38",
+      "cvssScore": 7.8,
+      "cweIds": [
+        "CWE-269"
+      ],
+      "references": [
+        "https://sourceware.org/bugzilla/"
+      ],
+      "publishedDate": "2024-01-05T00:00:00Z",
+      "lastModifiedDate": "2024-01-06T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0007",
+      "severity": "High",
+      "description": "SQL injection vulnerability in npm package pg.",
+      "packageName": "pg",
+      "packageVersion": "8.10.0",
+      "fixedVersion": "8.11.3",
+      "cvssScore": 7.5,
+      "cweIds": [
+        "CWE-89"
+      ],
+      "publishedDate": "2024-02-10T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0009",
+      "severity": "High",
+      "description": "Remote code execution in Python pip.",
+      "packageName": "pip",
+      "packageVersion": "23.0.0",
+      "fixedVersion": "23.3.2",
+      "cvssScore": 7.5,
+      "cweIds": [
+        "CWE-94"
+      ],
+      "publishedDate": "2024-02-20T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0011",
+      "severity": "Medium",
+      "description": "Denial of service in busybox.",
+      "packageName": "busybox",
+      "packageVersion": "1.35.0",
+      "fixedVersion": "1.36.1",
+      "cvssScore": 5.9,
+      "cweIds": [
+        "CWE-400"
+      ],
+      "publishedDate": "2024-03-10T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0008",
+      "severity": "Medium",
+      "description": "Prototype pollution in lodash.",
+      "packageName": "lodash",
+      "packageVersion": "4.17.20",
+      "fixedVersion": "4.17.21",
+      "cvssScore": 5.6,
+      "cweIds": [
+        "CWE-1321"
+      ],
+      "publishedDate": "2024-02-15T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0003",
+      "severity": "Medium",
+      "description": "Medium severity issue in zlib with potential memory corruption.",
+      "packageName": "zlib",
+      "packageVersion": "1.2.13",
+      "fixedVersion": "1.3.1",
+      "cvssScore": 5.3,
+      "cweIds": [
+        "CWE-190"
+      ],
+      "publishedDate": "2024-01-10T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0004",
+      "severity": "Low",
+      "description": "Low severity information disclosure in curl.",
+      "packageName": "curl",
+      "packageVersion": "8.0.0",
+      "fixedVersion": "8.5.0",
+      "cvssScore": 3.1,
+      "cweIds": [
+        "CWE-200"
+      ],
+      "publishedDate": "2024-01-15T00:00:00Z"
+    },
+    {
+      "id": "CVE-2024-0012",
+      "severity": "Low",
+      "description": "Minor security issue in musl libc.",
+      "packageName": "musl",
+      "packageVersion": "1.2.3",
+      "fixedVersion": "1.2.5",
+      "cvssScore": 2.5,
+      "cweIds": [
+        "CWE-200"
+      ],
+      "publishedDate": "2024-03-15T00:00:00Z"
+    }
+  ],
+  "runtimeRisks": [
+    {
+      "id": "RT-002-22",
+      "severity": "Critical",
+      "category": "Network",
+      "title": "暴露了危险端口 22",
+      "description": "端口 22 通常用于敏感服务，暴露在容器中可能增加攻击面。",
+      "evidence": "EXPOSE 22/tcp",
+      "remediation": "考虑使用网络隔离或仅在需要时暴露端口 22。确保服务有适当的身份验证。"
+    },
+    {
+      "id": "RT-004--var-run-docker-sock",
+      "severity": "Critical",
+      "category": "Filesystem",
+      "title": "挂载敏感目录 /var/run/docker.sock",
+      "description": "容器配置为挂载敏感目录 /var/run/docker.sock，这可能导致敏感信息泄露或主机文件系统被篡改。",
+      "evidence": "VOLUME /var/run/docker.sock",
+      "remediation": "避免挂载敏感系统目录。如果必须挂载，使用只读模式并严格限制访问。"
+    },
+    {
+      "id": "RT-005",
+      "severity": "Critical",
+      "category": "Filesystem",
+      "title": "挂载 Docker Socket",
+      "description": "容器挂载了 Docker socket，这等同于授予了容器对主机的完全 root 访问权限。攻击者可以通过这个 socket 控制整个 Docker 守护进程。",
+      "evidence": "VOLUME /var/run/docker.sock",
+      "remediation": "不要挂载 Docker socket。如果需要 Docker API 访问，考虑使用 Docker-in-Docker 或专用的 API 代理。"
+    },
+    {
+      "id": "RT-004--etc-shadow",
+      "severity": "Critical",
+      "category": "Filesystem",
+      "title": "挂载敏感目录 /etc/shadow",
+      "description": "容器配置为挂载敏感目录 /etc/shadow，这可能导致敏感信息泄露或主机文件系统被篡改。",
+      "evidence": "VOLUME /etc/shadow",
+      "remediation": "避免挂载敏感系统目录。如果必须挂载，使用只读模式并严格限制访问。"
+    },
+    {
+      "id": "RT-011--root--ssh-id_rsa",
+      "severity": "Critical",
+      "category": "Secrets",
+      "title": "镜像中包含 SSH 私钥: /root/.ssh/id_rsa",
+      "description": "SSH 私钥文件 /root/.ssh/id_rsa 被构建到镜像中，这可能导致凭据泄露。攻击者可以使用这些密钥访问其他系统。",
+      "evidence": "File exists: /root/.ssh/id_rsa",
+      "remediation": "从镜像中移除 SSH 私钥。使用 .dockerignore 或多阶段构建来避免将密钥打包进镜像。"
+    },
+    {
+      "id": "RT-001",
+      "severity": "High",
+      "category": "User Configuration",
+      "title": "容器以 root 用户运行",
+      "description": "容器配置为以 root 用户运行，可能导致权限提升攻击。攻击者如果成功入侵容器，将获得主机的 root 权限。",
+      "evidence": "USER directive: root",
+      "remediation": "在 Dockerfile 中添加非 root 用户：RUN useradd -m appuser && USER appuser"
+    },
+    {
+      "id": "RT-002-3306",
+      "severity": "High",
+      "category": "Network",
+      "title": "暴露了危险端口 3306",
+      "description": "端口 3306 通常用于敏感服务，暴露在容器中可能增加攻击面。",
+      "evidence": "EXPOSE 3306/tcp",
+      "remediation": "考虑使用网络隔离或仅在需要时暴露端口 3306。确保服务有适当的身份验证。"
+    },
+    {
+      "id": "RT-007-DB_PASSWORD",
+      "severity": "High",
+      "category": "Secrets",
+      "title": "环境变量中可能包含敏感信息: DB_PASSWORD",
+      "description": "环境变量 DB_PASSWORD 的名称暗示它可能包含敏感信息（密码、密钥等）。将敏感信息硬编码在镜像中是不安全的。",
+      "evidence": "ENV DB_PASSWORD=sup***",
+      "remediation": "不要在镜像中硬编码敏感信息。在运行时使用 Docker Secrets、Kubernetes Secrets 或环境变量注入。"
+    },
+    {
+      "id": "RT-007-AWS_SECRET_KEY",
+      "severity": "High",
+      "category": "Secrets",
+      "title": "环境变量中可能包含敏感信息: AWS_SECRET_KEY",
+      "description": "环境变量 AWS_SECRET_KEY 的名称暗示它可能包含敏感信息（密码、密钥等）。将敏感信息硬编码在镜像中是不安全的。",
+      "evidence": "ENV AWS_SECRET_KEY=AKI***",
+      "remediation": "不要在镜像中硬编码敏感信息。在运行时使用 Docker Secrets、Kubernetes Secrets 或环境变量注入。"
+    },
+    {
+      "id": "RT-012",
+      "severity": "High",
+      "category": "Secrets",
+      "title": "镜像中包含 Docker 配置文件",
+      "description": "Docker config.json 可能包含 Docker registry 的认证凭据，泄露这些凭据可能导致未经授权的镜像仓库访问。",
+      "evidence": "File exists: /root/.docker/config.json",
+      "remediation": "从镜像中移除 Docker 配置文件。确保在构建过程中不要复制认证文件。"
+    },
+    {
+      "id": "RT-003-22",
+      "severity": "Medium",
+      "category": "Network",
+      "title": "暴露了特权端口 22",
+      "description": "端口 22 是特权端口（<1024），需要 root 权限才能绑定。这可能迫使容器以 root 运行。",
+      "evidence": "EXPOSE 22/tcp",
+      "remediation": "考虑使用 >1024 的非特权端口，并在运行时通过端口映射转发。"
+    },
+    {
+      "id": "RT-006--etc-passwd",
+      "severity": "Medium",
+      "category": "Filesystem",
+      "title": "敏感文件可读: /etc/passwd",
+      "description": "敏感路径下的文件 /etc/passwd 对其他用户可读，可能导致信息泄露。",
+      "evidence": "File: /etc/passwd, mode: 100666",
+      "remediation": "收紧敏感文件的权限，确保不会被容器内的非授权用户读取。"
+    },
+    {
+      "id": "RT-006--root--docker-config-json",
+      "severity": "Medium",
+      "category": "Filesystem",
+      "title": "敏感文件可读: /root/.docker/config.json",
+      "description": "敏感路径下的文件 /root/.docker/config.json 对其他用户可读，可能导致信息泄露。",
+      "evidence": "File: /root/.docker/config.json, mode: 100666",
+      "remediation": "收紧敏感文件的权限，确保不会被容器内的非授权用户读取。"
+    },
+    {
+      "id": "RT-006--root--ssh-id_rsa",
+      "severity": "Medium",
+      "category": "Filesystem",
+      "title": "敏感文件可读: /root/.ssh/id_rsa",
+      "description": "敏感路径下的文件 /root/.ssh/id_rsa 对其他用户可读，可能导致信息泄露。",
+      "evidence": "File: /root/.ssh/id_rsa, mode: 100666",
+      "remediation": "收紧敏感文件的权限，确保不会被容器内的非授权用户读取。"
+    },
+    {
+      "id": "RT-017",
+      "severity": "Medium",
+      "category": "Runtime",
+      "title": "容器可能运行在调试模式",
+      "description": "启动命令包含 tail -f 或 sleep infinity 等模式，这通常是调试模式，不应在生产环境中使用。",
+      "evidence": "CMD/ENTRYPOINT: tail -f /dev/null",
+      "remediation": "确保容器启动命令运行实际的应用程序，而不是保持容器运行的占位符命令。"
+    },
+    {
+      "id": "RT-008",
+      "severity": "Low",
+      "category": "Health",
+      "title": "缺少健康检查配置",
+      "description": "容器没有配置健康检查，这使得编排系统（如 Kubernetes、Docker Swarm）无法检测容器是否正常运行。",
+      "evidence": "No HEALTHCHECK instruction found",
+      "remediation": "添加 HEALTHCHECK 指令来监控容器健康状态，例如：HEALTHCHECK CMD curl -f http://localhost/ || exit 1"
+    }
+  ],
+  "summary": {
+    "critical": 2,
+    "high": 4,
+    "medium": 3,
+    "low": 2,
+    "unknown": 0,
+    "total": 11,
+    "fixable": 11
+  }
+}

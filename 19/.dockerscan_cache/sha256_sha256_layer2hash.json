@@ -1,0 +1,73 @@
+{
+  "layerDigest": "sha256:sha256:layer2hash",
+  "packages": [
+    {
+      "name": "openssl",
+      "version": "3.0.10",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "glibc",
+      "version": "2.35",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "zlib",
+      "version": "1.2.13",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "curl",
+      "version": "8.0.0",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "bash",
+      "version": "5.2.0",
+      "packageManager": "dpkg",
+      "layerIndex": 0
+    },
+    {
+      "name": "libxml2",
+      "version": "2.11.0",
+      "packageManager": "dpkg",
+      "layerIndex": 1
+    },
+    {
+      "name": "busybox",
+      "version": "1.35.0",
+      "packageManager": "dpkg",
+      "layerIndex": 1
+    },
+    {
+      "name": "musl",
+      "version": "1.2.3",
+      "packageManager": "apk",
+      "layerIndex": 2
+    },
+    {
+      "name": "pip",
+      "version": "23.0.0",
+      "packageManager": "pip",
+      "layerIndex": 2
+    },
+    {
+      "name": "lodash",
+      "version": "4.17.20",
+      "packageManager": "npm",
+      "layerIndex": 2
+    },
+    {
+      "name": "pg",
+      "version": "8.10.0",
+      "packageManager": "npm",
+      "layerIndex": 2
+    }
+  ],
+  "scanTime": "2026-06-13T06:05:11.432Z",
+  "vulnerabilityCount": 11
+}
