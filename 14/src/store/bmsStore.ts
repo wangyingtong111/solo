@@ -14,6 +14,7 @@ import type {
 import { BmsSimulator } from '../utils/bmsSimulator';
 import { SOHEngine } from '../utils/sohEngine';
 import { BalanceEngine } from '../utils/balanceEngine';
+import { calculateConfidenceInterval } from '../utils/statistics';
 import ExcelJS from 'exceljs';
 
 type CurrentPage = 'monitor' | 'soh' | 'balance' | 'history' | 'report';
@@ -509,10 +510,7 @@ export const useBmsStore = create<BmsStore>((set, get) => ({
         const { caps, sohs } = groupByDay.get(day)!;
         const avgCap = caps.reduce((a, b) => a + b, 0) / caps.length;
         const avgSoh = sohs.reduce((a, b) => a + b, 0) / sohs.length;
-        const std = caps.length > 1
-          ? Math.sqrt(caps.reduce((s, v) => s + Math.pow(v - avgCap, 2), 0) / (caps.length - 1))
-          : 0;
-        const margin = 1.96 * std / Math.sqrt(Math.max(1, caps.length));
+        const ci = calculateConfidenceInterval(caps, 0.95);
 
         const row: (string | number)[] = [
           new Date(day).toLocaleDateString(),
@@ -521,8 +519,8 @@ export const useBmsStore = create<BmsStore>((set, get) => ({
         ];
         if (config.includeConfidence) {
           row.splice(2, 0,
-            Number((avgCap - margin).toFixed(2)),
-            Number((avgCap + margin).toFixed(2))
+            Number(ci.lower95.toFixed(2)),
+            Number(ci.upper95.toFixed(2))
           );
         }
         ws.addRow(row);
@@ -535,17 +533,14 @@ export const useBmsStore = create<BmsStore>((set, get) => ({
           const { caps, sohs } = groupByDay.get(day)!;
           const avgCap = caps.reduce((a, b) => a + b, 0) / caps.length;
           const avgSoh = sohs.reduce((a, b) => a + b, 0) / sohs.length;
-          const std = caps.length > 1
-            ? Math.sqrt(caps.reduce((s, v) => s + Math.pow(v - avgCap, 2), 0) / (caps.length - 1))
-            : 0;
-          const margin = 1.96 * std / Math.sqrt(Math.max(1, caps.length));
+          const ci = calculateConfidenceInterval(caps, 0.95);
           const row: (string | number)[] = [
             new Date(day).toLocaleDateString(),
             avgCap.toFixed(2),
             avgSoh.toFixed(2)
           ];
           if (config.includeConfidence) {
-            row.splice(2, 0, (avgCap - margin).toFixed(2), (avgCap + margin).toFixed(2));
+            row.splice(2, 0, ci.lower95.toFixed(2), ci.upper95.toFixed(2));
           }
           rows.push(row);
         });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
+import { calculateConfidenceInterval, calculateMean } from '../utils/statistics';
 import {
   CalendarDays,
   Play,
@@ -115,31 +116,31 @@ export default function HistoryPanel() {
     const len = first.length;
 
     return first.map((_, tIdx) => {
-      let capSum = 0, sohSum = 0, voltSum = 0, tempSum = 0;
-      let capLower = Infinity, capUpper = -Infinity;
+      const capacities: number[] = [];
+      let sohSum = 0, voltSum = 0, tempSum = 0;
 
       for (let c = 0; c < capacityHistory.length; c++) {
         const pt = capacityHistory[c][tIdx];
         if (!pt) continue;
-        capSum += pt.capacity;
+        capacities.push(pt.capacity);
         sohSum += pt.soh;
         voltSum += pt.voltage;
         tempSum += pt.temperature;
-        if (pt.capacity < capLower) capLower = pt.capacity;
-        if (pt.capacity > capUpper) capUpper = pt.capacity;
       }
 
-      const mean = capSum / capacityHistory.length;
-      const ci95 = (capUpper - capLower) * 0.35;
+      const ci = calculateConfidenceInterval(capacities, 0.95);
+      const mean = calculateMean(capacities);
 
       return {
         timestamp: first[tIdx].timestamp,
         capacity: mean,
-        capacityLower: mean - ci95,
-        capacityUpper: mean + ci95,
+        capacityLower: ci.lower95,
+        capacityUpper: ci.upper95,
         soh: sohSum / capacityHistory.length,
         voltage: voltSum / capacityHistory.length,
         temperature: tempSum / capacityHistory.length,
+        ciSampleSize: ci.sampleSize,
+        ciStdDev: ci.standardDeviation,
       };
     });
   }, [capacityHistory]);
