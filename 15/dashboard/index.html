@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>库存扣减监控大盘</title>
+  <link rel="stylesheet" href="/dashboard/style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <header class="dashboard-header">
+      <h1>⚡ 库存扣减实时监控</h1>
+      <div class="header-meta">
+        <span id="connection-status" class="status-dot disconnected">●</span>
+        <span id="refresh-time">--:--:--</span>
+      </div>
+    </header>
+
+    <section class="cards-row">
+      <div class="card card-success">
+        <div class="card-label">扣减成功</div>
+        <div class="card-value" id="deduct-success">0</div>
+        <div class="card-trend" id="deduct-success-rate">0%/s</div>
+      </div>
+      <div class="card card-warning">
+        <div class="card-label">库存不足</div>
+        <div class="card-value" id="deduct-insufficient">0</div>
+        <div class="card-trend" id="insufficient-rate">0%/s</div>
+      </div>
+      <div class="card card-info">
+        <div class="card-label">重复请求</div>
+        <div class="card-value" id="deduct-duplicate">0</div>
+      </div>
+      <div class="card card-danger">
+        <div class="card-label">系统错误</div>
+        <div class="card-value" id="deduct-error">0</div>
+      </div>
+    </section>
+
+    <section class="cards-row">
+      <div class="card">
+        <div class="card-label">平均延迟 (ms)</div>
+        <div class="card-value" id="avg-latency">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">P99 延迟 (ms)</div>
+        <div class="card-value" id="p99-latency">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">熔断器状态</div>
+        <div class="card-value" id="circuit-state">CLOSED</div>
+      </div>
+      <div class="card">
+        <div class="card-label">限流拒绝</div>
+        <div class="card-value" id="rate-limit-rejected">0</div>
+      </div>
+    </section>
+
+    <section class="cards-row">
+      <div class="card">
+        <div class="card-label">回滚成功</div>
+        <div class="card-value" id="rollback-success">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">确认成功</div>
+        <div class="card-value" id="confirm-success">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">超时自动回滚</div>
+        <div class="card-value" id="auto-rollback">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">降级缓存命中</div>
+        <div class="card-value" id="cache-hit">0</div>
+      </div>
+    </section>
+
+    <section class="section-grid">
+      <div class="panel">
+        <h2>扣减延迟趋势</h2>
+        <canvas id="latency-chart" width="600" height="200"></canvas>
+      </div>
+      <div class="panel">
+        <h2>扣减量趋势</h2>
+        <canvas id="throughput-chart" width="600" height="200"></canvas>
+      </div>
+    </section>
+
+    <section class="section-grid">
+      <div class="panel">
+        <h2>最近追踪链路</h2>
+        <div class="table-container">
+          <table id="traces-table">
+            <thead>
+              <tr>
+                <th>Trace ID</th>
+                <th>操作</th>
+                <th>耗时(ms)</th>
+                <th>状态</th>
+                <th>时间</th>
+              </tr>
+            </thead>
+            <tbody id="traces-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>商家限流配置</h2>
+        <div class="table-container">
+          <table id="rate-limit-table">
+            <thead>
+              <tr>
+                <th>商家ID</th>
+                <th>限流(次/分)</th>
+                <th>突发量</th>
+                <th>窗口(ms)</th>
+              </tr>
+            </thead>
+            <tbody id="rate-limit-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="/dashboard/app.js"></script>
+</body>
+</html>
