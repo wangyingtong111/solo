@@ -4,9 +4,9 @@ const DEFAULT_CONFIG: BalanceConfig = {
   balanceThreshold: 0.01,
   maxCurrent: 2,
   targetDelta: 0.005,
-  kp: 0.8,
-  ki: 0.1,
-  kd: 0.05
+  kp: 50,
+  ki: 3,
+  kd: 0.5
 };
 
 export class BalanceEngine {
@@ -40,7 +40,7 @@ export class BalanceEngine {
     const sohValues = cells.map(c => c.soh);
     const delta = this.calculateDelta(voltages);
 
-    if (delta < this.config.targetDelta) {
+    if (delta < this.config.targetDelta * 0.8) {
       return cells.map(cell => ({
         cellId: cell.cellId,
         current: 0,
@@ -51,35 +51,40 @@ export class BalanceEngine {
 
     const meanV = this.meanVoltage(voltages);
     const meanSoh = sohValues.reduce((a, b) => a + b, 0) / sohValues.length;
+    const dt = 0.1;
 
     return cells.map((cell, idx) => {
       const vError = cell.voltage - meanV;
-      const sohFactor = 1 - (cell.soh - meanSoh) / 100 * 0.5;
+      const sohFactor = 1 - (cell.soh - meanSoh) / 100 * 0.3;
 
       const intKey = cell.cellId;
       const prevInt = this.integralError.get(intKey) || 0;
       const prevErr = this.prevError.get(intKey) || 0;
 
-      const newInt = Math.max(-5, Math.min(5, prevInt + vError * 0.1));
+      const newInt = Math.max(-2, Math.min(2, prevInt + vError * dt));
       this.integralError.set(intKey, newInt);
       this.prevError.set(intKey, vError);
 
-      const derivative = (vError - prevErr) / 0.1;
+      const derivative = (vError - prevErr) / dt;
 
       let pidOutput = this.config.kp * vError + this.config.ki * newInt + this.config.kd * derivative;
       pidOutput *= sohFactor;
 
-      let current = Math.min(this.config.maxCurrent, Math.abs(pidOutput));
-      current = Math.max(0, current - this.config.targetDelta * 50);
+      let current = 0;
+      if (vError > this.config.targetDelta * 0.5) {
+        current = Math.min(this.config.maxCurrent, Math.max(0, pidOutput));
+        const deadBand = this.config.targetDelta * 15;
+        current = Math.max(0, current - deadBand);
+      }
 
-      if (Math.abs(vError) < this.config.balanceThreshold * 0.3) {
+      if (Math.abs(vError) < this.config.balanceThreshold * 0.1) {
         current = 0;
       }
 
       return {
         cellId: cell.cellId,
         current: current,
-        direction: pidOutput >= 0 ? 'discharge' : 'charge',
+        direction: current > 0 ? 'discharge' : 'charge',
         pwmDuty: current > 0 ? (current / this.config.maxCurrent) * 100 : 0
       };
     });
@@ -106,11 +111,25 @@ export class BalanceEngine {
     }
 
     if (initialDelta <= targetDelta) return 0;
-    const effectiveRatePerSecond = maxCurrent * 0.0005;
-    if (effectiveRatePerSecond <= 0) return 30;
-    const secondsNeeded = (initialDelta - targetDelta) / effectiveRatePerSecond;
-    const minutes = secondsNeeded / 60;
-    return Math.min(30, Math.max(0, minutes));
+
+    const voltsPerAmpSecond = 6.0e-5;
+    const effectiveKpRatio = 0.7;
+
+    const deadBandCurrent = this.config.targetDelta * 15;
+    const currentPerVolt = this.config.kp * effectiveKpRatio;
+    const deadBandVoltage = (deadBandCurrent / currentPerVolt) * 2;
+
+    const adjustedInitial = Math.max(0.001, initialDelta - deadBandVoltage);
+    const adjustedTarget = Math.max(0.0001, targetDelta - deadBandVoltage);
+
+    if (adjustedInitial <= adjustedTarget) {
+      return Math.min(30, Math.max(0, initialDelta / (currentPerVolt * voltsPerAmpSecond * maxCurrent) / 60));
+    }
+
+    const tauSeconds = 2 / (currentPerVolt * voltsPerAmpSecond * maxCurrent / adjustedInitial) * (adjustedInitial / 2);
+    const tSeconds = tauSeconds * Math.log(adjustedInitial / adjustedTarget);
+
+    return Math.min(30, Math.max(0, tSeconds / 60));
   }
 
   evaluateConvergence(cells: CellData[]): { timestamps: number[]; deltas: number[]; converged: boolean; convergeTime: number } {
@@ -121,28 +140,73 @@ export class BalanceEngine {
     let converged = false;
     let convergeTime = 0;
 
-    const maxSteps = 360;
-    for (let step = 0; step < maxSteps; step++) {
-      const voltages = currentCells.map(c => c.voltage);
-      const delta = this.calculateDelta(voltages);
+    const dtSeconds = 5;
+    const totalSimulationSeconds = 30 * 60;
+    const maxSteps = Math.floor(totalSimulationSeconds / dtSeconds);
 
-      timestamps.push(startTime + step * 10000);
+    const voltsPerAmpSecond = 6.0e-5;
+
+    const simIntegral: Map<string, number> = new Map();
+    const simPrevError: Map<string, number> = new Map();
+
+    const voltages = currentCells.map(c => c.voltage);
+    const meanSoh = currentCells.reduce((a, c) => a + c.soh, 0) / currentCells.length;
+    const initialDelta = this.calculateDelta(voltages);
+
+    if (initialDelta <= this.config.targetDelta) {
+      return {
+        timestamps: [startTime],
+        deltas: [initialDelta],
+        converged: true,
+        convergeTime: 0
+      };
+    }
+
+    for (let step = 0; step < maxSteps; step++) {
+      const stepVoltages = currentCells.map(c => c.voltage);
+      const delta = this.calculateDelta(stepVoltages);
+
+      timestamps.push(startTime + step * dtSeconds * 1000);
       deltas.push(delta);
 
       if (delta <= this.config.targetDelta) {
         converged = true;
-        convergeTime = step * 10;
+        convergeTime = step * dtSeconds / 60;
         break;
       }
 
-      const commands = this.generateCommands(currentCells);
-      const meanV = this.meanVoltage(voltages);
+      const meanV = this.meanVoltage(stepVoltages);
 
-      currentCells = currentCells.map((cell, idx) => {
-        const cmd = commands[idx];
+      currentCells = currentCells.map((cell) => {
         const vError = cell.voltage - meanV;
-        const balanceEffect = cmd.current * (cmd.direction === 'discharge' ? -1 : 1) * 0.0005 * 10;
-        const newVoltage = cell.voltage + balanceEffect + (meanV - cell.voltage) * 0.02;
+        const sohFactor = 1 - (cell.soh - meanSoh) / 100 * 0.3;
+
+        const intKey = cell.cellId;
+        const prevInt = simIntegral.get(intKey) || 0;
+        const prevErr = simPrevError.get(intKey) || 0;
+
+        const newInt = Math.max(-2, Math.min(2, prevInt + vError * dtSeconds));
+        simIntegral.set(intKey, newInt);
+        simPrevError.set(intKey, vError);
+
+        const derivative = (vError - prevErr) / dtSeconds;
+
+        let pidOutput = this.config.kp * vError + this.config.ki * newInt + this.config.kd * derivative;
+        pidOutput *= sohFactor;
+
+        let commandCurrent = 0;
+        if (vError > this.config.targetDelta * 0.5) {
+          commandCurrent = Math.min(this.config.maxCurrent, Math.max(0, pidOutput));
+          const deadBand = this.config.targetDelta * 15;
+          commandCurrent = Math.max(0, commandCurrent - deadBand);
+        }
+
+        if (Math.abs(vError) < this.config.balanceThreshold * 0.1) {
+          commandCurrent = 0;
+        }
+
+        const dV = -commandCurrent * voltsPerAmpSecond * dtSeconds;
+        const newVoltage = cell.voltage + dV;
 
         return {
           ...cell,
@@ -152,7 +216,13 @@ export class BalanceEngine {
     }
 
     if (!converged) {
-      convergeTime = maxSteps * 10;
+      const finalVoltages = currentCells.map(c => c.voltage);
+      const finalDelta = this.calculateDelta(finalVoltages);
+      if (deltas.length < maxSteps) {
+        timestamps.push(startTime + maxSteps * dtSeconds * 1000);
+        deltas.push(finalDelta);
+      }
+      convergeTime = 30;
     }
 
     return { timestamps, deltas, converged, convergeTime };
