@@ -25,6 +25,13 @@ from nlp_query import NLQueryEngine
 from report_generator import ReportGenerator
 from websocket_handler import WebSocketManager
 
+try:
+    from history_store import HistoryStore
+    HISTORY_AVAILABLE = True
+except ImportError as e:
+    HISTORY_AVAILABLE = False
+    print(f"[WARN] HistoryStore unavailable: {e}")
+
 
 CARD_STYLE = {
     "backgroundColor": "white",
@@ -89,6 +96,18 @@ class LogDashboard:
         self.dep_graph = DependencyGraph()
         self.nlp_engine = NLQueryEngine()
         self.report_gen = ReportGenerator()
+        self.history_store = None
+        if HISTORY_AVAILABLE:
+            try:
+                self.history_store = HistoryStore.get_instance()
+                self.history_store.start()
+                if config.HISTORY_BACKFILL_HOURS > 0:
+                    stats = self.history_store.get_stats()
+                    if stats.get("api_minute_snapshots_rows", 0) < 100:
+                        self.history_store.seed_backfill_history(hours=config.HISTORY_BACKFILL_HOURS)
+            except Exception as e:
+                print(f"[WARN] Failed to init HistoryStore: {e}")
+                self.history_store = None
 
         self._running = False
         self._consume_thread = None
@@ -893,35 +912,134 @@ class LogDashboard:
             )
 
         parsed = self.nlp_engine.parse(query)
-        agg_data = self.aggregator.get_cached()
-        result = self.nlp_engine.execute(
-            parsed,
-            agg_data.get("api_metrics", {}),
-            agg_data.get("service_metrics", {}),
-        )
+
+        if self.history_store:
+            result = self.nlp_engine.execute_with_history(parsed, self.history_store)
+        else:
+            agg_data = self.aggregator.get_cached()
+            result = self.nlp_engine.execute(
+                parsed,
+                agg_data.get("api_metrics", {}),
+                agg_data.get("service_metrics", {}),
+            )
 
         result_html = self._render_nlp_result(result)
         chart = self._render_nlp_chart(result)
         return result_html, chart
 
     def _render_nlp_result(self, result):
-        if not result or not result.get("results"):
+        if not result:
             return html.Div("暂无查询结果", style={"color": "#64748B", "padding": "16px"})
 
-        return html.Div([
+        parsed = result.get("parsed", {})
+        tr = parsed.get("time_range") or result.get("time_range_used")
+        tr_label = ""
+        if tr and tr.get("label"):
+            tr_label = tr["label"]
+        elif tr and tr.get("from"):
+            tr_label = f"{tr.get('from', '')} 至 {tr.get('to', '')}"
+
+        data_source = "📦 历史存储 (SQLite)" if self.history_store else "⚡ 实时窗口 (5分钟)"
+
+        parts = [
             html.Div([
-                html.Strong("查询: ", style={"color": "#1E293B", "fontSize": "13px"}),
-                html.Span(result.get("query", ""), style={"color": "#475569", "fontSize": "13px"}),
-            ], style={"marginBottom": "6px"}),
-            html.Div([
-                html.Strong("说明: ", style={"color": "#1E293B", "fontSize": "12px"}),
-                html.Span(result.get("description", ""), style={"color": "#475569", "fontSize": "12px"}),
-            ]),
-        ], style={
-            "backgroundColor": "#F0F9FF",
-            "padding": "12px 16px",
-            "borderRadius": "8px",
-            "borderLeft": "4px solid #3B82F6",
+                html.Div([
+                    html.Div([
+                        html.Strong("📝 查询: ", style={"color": "#1E293B", "fontSize": "13px"}),
+                        html.Span(result.get("query", ""), style={
+                            "color": "#1E40AF", "fontSize": "13px", "fontWeight": "500",
+                        }),
+                    ], style={"marginBottom": "8px"}),
+                    html.Div([
+                        html.Strong("⏰ 时间范围: ", style={"color": "#1E293B", "fontSize": "12px"}),
+                        html.Span(tr_label or "未指定（默认最近1小时）", style={
+                            "color": "#7C3AED", "fontSize": "12px", "fontWeight": "500",
+                        }),
+                    ], style={"marginBottom": "8px"}),
+                    html.Div([
+                        html.Strong("📚 数据来源: ", style={"color": "#1E293B", "fontSize": "12px"}),
+                        html.Span(data_source, style={
+                            "color": "#047857", "fontSize": "12px", "fontWeight": "500",
+                        }),
+                    ], style={"marginBottom": "8px"}),
+                    html.Div([
+                        html.Strong("🎯 解析意图: ", style={"color": "#1E293B", "fontSize": "12px"}),
+                        html.Span(
+                            f"查询{parsed.get('entity_type', 'API')} · 按"
+                            f"{parsed.get('sort_by', '请求量')}"
+                            f"{'降序' if parsed.get('sort_order') == 'desc' else '升序'} · "
+                            f"Top {parsed.get('limit', 10)}",
+                            style={"color": "#B45309", "fontSize": "12px", "fontWeight": "500"},
+                        ),
+                    ], style={"marginBottom": "10px"}),
+                ], style={
+                    "flex": "2",
+                    "borderRight": "1px dashed #CBD5E1",
+                    "paddingRight": "16px",
+                }),
+                html.Div([
+                    html.Div([
+                        html.Div("📊 记录数", style={
+                            "fontSize": "10px", "color": "#64748B", "marginBottom": "2px",
+                        }),
+                        html.Div(
+                            f"{result.get('row_count', len(result.get('results', [])))} 条",
+                            style={
+                                "fontSize": "18px", "fontWeight": "700",
+                                "color": "#3B82F6",
+                            },
+                        ),
+                    ], style={"marginBottom": "6px"}),
+                    html.Div([
+                        html.Div("🔢 总请求量", style={
+                            "fontSize": "10px", "color": "#64748B", "marginBottom": "2px",
+                        }),
+                        html.Div(
+                            f"{sum(r.get('total_requests', 0) for r in result.get('results', [])):,}",
+                            style={
+                                "fontSize": "16px", "fontWeight": "700",
+                                "color": "#059669",
+                            },
+                        ),
+                    ]),
+                ], style={
+                    "flex": "1",
+                    "paddingLeft": "16px",
+                    "textAlign": "right",
+                }),
+            ], style={"display": "flex", "alignItems": "flex-start"}),
+        ]
+
+        if not result.get("results"):
+            parts.append(
+                html.Div(
+                    f"⚠️ {result.get('description', '未找到匹配的数据')}",
+                    style={
+                        "marginTop": "10px", "padding": "10px 14px",
+                        "backgroundColor": "#FEF3C7", "color": "#92400E",
+                        "borderRadius": "6px", "fontSize": "12px",
+                    },
+                )
+            )
+        else:
+            parts.append(
+                html.Div(
+                    result.get("description", ""),
+                    style={
+                        "marginTop": "8px", "padding": "10px 14px",
+                        "backgroundColor": "#F0FDF4", "color": "#166534",
+                        "borderRadius": "6px", "fontSize": "12px",
+                        "whiteSpace": "pre-line",
+                    },
+                )
+            )
+
+        return html.Div(parts, style={
+            "backgroundColor": "#F8FAFC",
+            "padding": "14px 18px",
+            "borderRadius": "10px",
+            "border": "1px solid #E2E8F0",
+            "borderTop": "4px solid #3B82F6",
         })
 
     def _render_nlp_chart(self, result):

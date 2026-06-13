@@ -19,6 +19,11 @@ ANOMALY_IQR_MULTIPLIER = 1.5
 
 WEBSOCKET_PUSH_INTERVAL = 1.0
 
+STORAGE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+HISTORY_RETENTION_DAYS = int(os.getenv("HISTORY_RETENTION_DAYS", "7"))
+HISTORY_BACKFILL_HOURS = int(os.getenv("HISTORY_BACKFILL_HOURS", "25"))
+USE_CLICKHOUSE = False  # 切换为 True 则使用 ClickHouse 替代 SQLite
+
 SIMULATION_LOGS_PER_SEC = 50000
 SIMULATION_BATCH_SIZE = 5000
 

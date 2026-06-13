@@ -331,3 +331,175 @@ class NLQueryEngine:
             "sort_by": parsed.sort_by,
             "sort_order": parsed.sort_order,
         }
+
+    def execute_with_history(self, parsed: ParsedQuery, history_store) -> Dict:
+        """
+        从历史存储中执行 NLP 查询（推荐）
+
+        Args:
+            parsed: ParsedQuery 解析结果
+            history_store: HistoryStore 实例
+
+        Returns:
+            查询结果字典（含 results + chart_type + timeseries + 时间范围过滤说明）
+        """
+        default_range = {
+            "from": (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S"),
+            "to": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "label": "默认最近1小时",
+        }
+
+        if parsed.time_range:
+            time_from = parsed.time_range["from"]
+            time_to = parsed.time_range["to"]
+            time_label = f"{time_from} 至 {time_to}"
+        else:
+            time_from = default_range["from"]
+            time_to = default_range["to"]
+            time_label = default_range["label"]
+
+        sort_mapping = {
+            "avg_rt": "avg_latency_ms",
+            "p50": "p50_latency_ms",
+            "p90": "p90_latency_ms",
+            "p95": "p95_latency_ms",
+            "p99": "p99_latency_ms",
+            "error_rate": "error_rate_pct",
+            "error_count": "error_count",
+            "total_requests": "request_count",
+        }
+        order_by = sort_mapping.get(parsed.sort_by, "p99_latency_ms")
+
+        services = [parsed.service] if parsed.service else None
+
+        try:
+            df = history_store.query_api_stats(
+                start_time=time_from,
+                end_time=time_to,
+                group_by="service_endpoint",
+                limit=parsed.limit,
+                order_by=order_by,
+                order_desc=(parsed.sort_order == "desc"),
+                services=services,
+                min_requests=5,
+            )
+        except Exception as e:
+            print(f"[ERROR] NLP history query failed: {e}")
+            return {
+                "query": parsed.raw_query,
+                "parsed": self._parsed_to_dict(parsed),
+                "results": [],
+                "chart_type": "bar",
+                "title": self._generate_title(parsed),
+                "x_key": "name",
+                "y_key": parsed.sort_by,
+                "description": f"查询失败: {e}",
+                "timeseries": pd.DataFrame(),
+                "time_range_used": {"from": time_from, "to": time_to, "label": time_label},
+            }
+
+        if len(df) == 0:
+            stats = history_store.get_stats()
+            tip = ""
+            if stats.get("api_minute_snapshots_rows", 0) == 0:
+                tip = "（历史存储暂无数据，启动回填中）"
+            return {
+                "query": parsed.raw_query,
+                "parsed": self._parsed_to_dict(parsed),
+                "results": [],
+                "chart_type": "bar",
+                "title": self._generate_title(parsed),
+                "x_key": "name",
+                "y_key": parsed.sort_by,
+                "description": f"在 {time_label} 时间范围内未找到满足条件的数据 {tip}",
+                "timeseries": pd.DataFrame(),
+                "time_range_used": {"from": time_from, "to": time_to, "label": time_label},
+                "empty": True,
+            }
+
+        results = []
+        for _, row in df.iterrows():
+            service = str(row.get("service", ""))
+            endpoint = str(row.get("endpoint", ""))
+            display_name = f"{service} → {endpoint}" if service else endpoint
+
+            reverse_sort_mapping = {
+                "avg_latency_ms": "avg_rt",
+                "p50_latency_ms": "p50",
+                "p90_latency_ms": "p90",
+                "p95_latency_ms": "p95",
+                "p99_latency_ms": "p99",
+                "error_rate_pct": "error_rate",
+            }
+            sort_by_local = reverse_sort_mapping.get(order_by, parsed.sort_by)
+
+            results.append({
+                "name": display_name,
+                "service": service,
+                "endpoint": endpoint,
+                "display_name": display_name,
+                "total_requests": int(row.get("request_count", 0)),
+                "request_count": int(row.get("request_count", 0)),
+                "error_count": int(row.get("error_count", 0)),
+                "error_rate": round(float(row.get("error_rate_pct", 0)), 2),
+                "avg_rt": round(float(row.get("avg_latency_ms", 0)), 2),
+                "p50": round(float(row.get("p50_latency_ms", 0)), 2),
+                "p90": round(float(row.get("p90_latency_ms", 0)), 2),
+                "p95": round(float(row.get("p95_latency_ms", 0)), 2),
+                "p99": round(float(row.get("p99_latency_ms", 0)), 2),
+                "max_rt": round(float(row.get("max_latency_ms", 0)), 2),
+                "sample_minutes": int(row.get("sample_minutes", 0)),
+                sort_by_local: round(float(row.get(order_by, 0)), 2),
+            })
+
+        try:
+            ts_df = history_store.query_timeseries(
+                start_time=time_from,
+                end_time=time_to,
+                granularity="hour",
+                services=services,
+            )
+        except Exception:
+            ts_df = pd.DataFrame()
+
+        return {
+            "query": parsed.raw_query,
+            "parsed": self._parsed_to_dict(parsed),
+            "results": results,
+            "chart_type": self._determine_chart_type(parsed),
+            "title": self._generate_title(parsed),
+            "x_key": "name",
+            "y_key": parsed.sort_by,
+            "description": self._generate_history_description(parsed, results, time_label),
+            "timeseries": ts_df,
+            "time_range_used": {"from": time_from, "to": time_to, "label": time_label},
+            "row_count": len(results),
+            "empty": False,
+        }
+
+    def _generate_history_description(self, parsed: ParsedQuery,
+                                       results: List[Dict], time_label: str) -> str:
+        if not results:
+            return f"在 {time_label} 内未找到数据"
+
+        metric_names = {
+            "avg_rt": "平均响应时间",
+            "p50": "P50响应时间",
+            "p90": "P90响应时间",
+            "p95": "P95响应时间",
+            "p99": "P99响应时间",
+            "error_rate": "错误率",
+            "error_count": "错误数",
+            "total_requests": "请求总数",
+        }
+        metric_name = metric_names.get(parsed.sort_by, parsed.sort_by)
+
+        total_requests = sum(r["total_requests"] for r in results)
+        top = results[0]
+        direction = "最高" if parsed.sort_order == "desc" else "最低"
+
+        return (
+            f"时间范围: {time_label}\n"
+            f"查询到 {len(results)} 条记录，共 {total_requests:,} 个请求\n"
+            f"{metric_name}{direction}的接口: {top['name']} = {top.get(parsed.sort_by, 'N/A')}"
+        )
