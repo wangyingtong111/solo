@@ -93,10 +93,10 @@ class RedisClient {
     return result;
   }
 
-  async segmentRollback(skuId: string, txId: string, segmentCount: number): Promise<number> {
+  async segmentRollback(skuId: string, txId: string): Promise<number> {
     const txKey = `inventory:tx:${skuId}`;
     const baseKey = `inventory:stock:${skuId}`;
-    const result = await (this.client as any).segmentRollback(txKey, baseKey, txId, segmentCount);
+    const result = await (this.client as any).segmentRollback(txKey, baseKey, txId);
     return result;
   }
 

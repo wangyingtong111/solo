@@ -36,7 +36,8 @@ if remaining > 0 then
     return -1
 end
 
-redis.call('HSET', tx_key, tx_id, quantity)
+local detail = table.concat(results, ',')
+redis.call('HSET', tx_key, tx_id, detail)
 redis.call('PEXPIRE', tx_key, expire_ms)
 
 return quantity

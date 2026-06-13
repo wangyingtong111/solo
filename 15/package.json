@@ -7,6 +7,9 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "dev": "ts-node src/app.ts",
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
@@ -20,8 +23,13 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "^8.2.7",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
     "@types/uuid": "^9.0.7",
+    "ioredis-mock": "^8.13.1",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

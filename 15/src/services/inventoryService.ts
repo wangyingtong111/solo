@@ -118,18 +118,23 @@ export class InventoryService {
       let result: number;
 
       if (isHot) {
-        const segCount = segmentLockService.getSegmentCount(skuId);
-        result = await redisClient.segmentRollback(skuId, txId, segCount);
+        result = await redisClient.segmentRollback(skuId, txId);
       } else {
         result = await redisClient.rollback(skuId, txId);
       }
 
       const latencyMs = Date.now() - startTime;
       log.info({ result, latencyMs, isHot }, 'Rollback executed');
-      metrics.increment('rollback.success', { skuId });
-      metrics.timing('rollback.latency', latencyMs, { skuId });
 
-      return result > 0;
+      if (result > 0) {
+        metrics.increment('rollback.success', { skuId });
+        metrics.timing('rollback.latency', latencyMs, { skuId });
+        return true;
+      } else {
+        log.warn({ txId }, 'Rollback skipped: TX record not found');
+        metrics.increment('rollback.tx_not_found', { skuId });
+        return false;
+      }
     } catch (err: any) {
       log.error({ err: err.message }, 'Rollback failed');
       metrics.increment('rollback.error', { skuId });
