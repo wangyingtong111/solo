@@ -74,6 +74,7 @@ class LogDashboard:
             suppress_callback_exceptions=True,
             external_scripts=[
                 "https://cdn.plot.ly/plotly-2.35.2.min.js",
+                "https://cdn.socket.io/4.7.2/socket.io.min.js",
             ],
         )
         self.server = self.app.server
@@ -100,10 +101,9 @@ class LogDashboard:
 
     def _setup_layout(self):
         self.app.layout = html.Div([
-            dcc.Store(id="realtime-store", data={}),
             dcc.Store(id="page-store", data="overview"),
-            dcc.Interval(id="realtime-interval", interval=2000, n_intervals=0),
-            dcc.Interval(id="forecast-interval", interval=30000, n_intervals=0),
+            dcc.Store(id="ws-data-store", data={}),
+            dcc.Store(id="ws-anomalies-store", data=[]),
 
             html.Div([
                 html.Div([
@@ -114,7 +114,7 @@ class LogDashboard:
                         "fontWeight": "700",
                     }),
                     html.Div([
-                        html.Span("● LIVE", style={
+                        html.Span("● LIVE", id="ws-status-indicator", style={
                             "color": "#10B981",
                             "fontSize": "13px",
                             "fontWeight": "600",
@@ -122,6 +122,11 @@ class LogDashboard:
                             "backgroundColor": "rgba(16, 185, 129, 0.2)",
                             "padding": "4px 12px",
                             "borderRadius": "20px",
+                        }),
+                        html.Span("", id="ws-last-update", style={
+                            "color": "#94A3B8",
+                            "fontSize": "11px",
+                            "marginLeft": "10px",
                         }),
                     ], style={"display": "flex", "alignItems": "center"}),
                 ], style={"display": "flex", "alignItems": "center"}),
@@ -151,6 +156,29 @@ class LogDashboard:
         ], style={"fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"})
 
     def _setup_callbacks(self):
+        self.app.clientside_callback(
+            """
+            function(n) {
+                var nu = window.dash_clientside.no_update;
+                if (!window.WSClient || typeof window.WSClient.getLastData !== 'function') {
+                    return [nu, nu];
+                }
+                var data = window.WSClient.getLastData();
+                if (!data || !data.aggregation) {
+                    return [nu, nu];
+                }
+                var pid = data._push_id;
+                if (window._lastWsPid === pid) {
+                    return [nu, nu];
+                }
+                window._lastWsPid = pid;
+                return [data.aggregation, data.anomalies || []];
+            }
+            """,
+            [Output("ws-data-store", "data"), Output("ws-anomalies-store", "data")],
+            [Input("overview-refresh-interval", "n_intervals")],
+        )
+
         self.app.callback(
             Output("main-content", "children"),
             Output("page-store", "data"),
@@ -175,15 +203,15 @@ class LogDashboard:
                 Output("service-deps-graph", "elements"),
                 Output("graph-stats", "children"),
             ],
-            [Input("realtime-interval", "n_intervals")],
-            prevent_initial_call=False,
+            [Input("overview-refresh-interval", "n_intervals")],
+            prevent_initial_call=True,
         )(self._update_overview)
 
         self.app.callback(
             Output("forecast-chart", "figure"),
             Output("forecast-alerts", "children"),
-            [Input("forecast-interval", "n_intervals")],
-            prevent_initial_call=False,
+            [Input("analytics-refresh-interval", "n_intervals")],
+            prevent_initial_call=True,
         )(self._update_forecast)
 
         self.app.callback(
@@ -192,7 +220,7 @@ class LogDashboard:
             State("trace-search-input", "value"),
             State("trace-min-duration", "value"),
             State("trace-error-only", "value"),
-            prevent_initial_call=False,
+            prevent_initial_call=True,
         )(self._handle_trace_search)
 
         self.app.callback(
@@ -229,6 +257,7 @@ class LogDashboard:
 
     def _render_overview(self):
         return html.Div([
+            dcc.Interval(id="overview-refresh-interval", interval=2000, n_intervals=0),
             html.Div(id="overview-stats", style={
                 "display": "grid",
                 "gridTemplateColumns": "repeat(4, 1fr)",
@@ -299,6 +328,7 @@ class LogDashboard:
     def _update_overview(self, n):
         data = self.aggregator.get_cached()
         anomalies = self.anomaly_detector.get_recent_anomalies(limit=20)
+
         dep_graph = self.dep_graph.get_cytoscape_graph()
         dep_metrics = self.dep_graph.get_metrics()
 
@@ -670,6 +700,7 @@ class LogDashboard:
 
     def _render_analytics(self):
         return html.Div([
+            dcc.Interval(id="analytics-refresh-interval", interval=30000, n_intervals=0),
             html.Div([
                 html.H3("🔮 流量预测 (Prophet 模型)", style=TITLE_STYLE),
                 html.Div("预测未来1小时的流量走势，支持提前预警", style={"color": "#64748B", "fontSize": "12px", "marginBottom": "14px"}),
@@ -1106,7 +1137,8 @@ class LogDashboard:
                     agg_data.get("service_metrics", {}),
                 )
                 for a in anomalies:
-                    self.ws_manager.push_anomaly(a)
+                    from dataclasses import asdict
+                    self.ws_manager.push_anomaly(asdict(a))
 
                 time.sleep(1)
             except Exception as e:
