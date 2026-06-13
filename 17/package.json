@@ -1,0 +1,20 @@
+{
+  "name": "collab-sheet",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "cd packages/server && npm run dev",
+    "dev:client": "cd packages/client && npm run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "cd packages/server && npm run build",
+    "build:client": "cd packages/client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,15 @@
+export var EventType;
+(function (EventType) {
+    EventType["DOCUMENT_CREATED"] = "DOCUMENT_CREATED";
+    EventType["DOCUMENT_UPDATED"] = "DOCUMENT_UPDATED";
+    EventType["DOCUMENT_DELETED"] = "DOCUMENT_DELETED";
+    EventType["SHEET_CREATED"] = "SHEET_CREATED";
+    EventType["SHEET_UPDATED"] = "SHEET_UPDATED";
+    EventType["SHEET_DELETED"] = "SHEET_DELETED";
+    EventType["CELL_UPDATED"] = "CELL_UPDATED";
+    EventType["CELL_FORMULA_UPDATED"] = "CELL_FORMULA_UPDATED";
+    EventType["CELL_STYLE_UPDATED"] = "CELL_STYLE_UPDATED";
+    EventType["PERMISSION_GRANTED"] = "PERMISSION_GRANTED";
+    EventType["PERMISSION_REVOKED"] = "PERMISSION_REVOKED";
+    EventType["SNAPSHOT_CREATED"] = "SNAPSHOT_CREATED";
+})(EventType || (EventType = {}));
