@@ -8,8 +8,9 @@ const luaScripts: Record<string, string> = {
   rollback: fs.readFileSync(path.join(__dirname, '../../lua/rollback.lua'), 'utf8'),
   segmentDeduct: fs.readFileSync(path.join(__dirname, '../../lua/segment_deduct.lua'), 'utf8'),
   segmentRollback: fs.readFileSync(path.join(__dirname, '../../lua/segment_rollback.lua'), 'utf8'),
-  rateLimiter: fs.readFileSync(path.join(__dirname, '../../lua/rate_limiter.lua'), 'utf8'),
   confirmDeduct: fs.readFileSync(path.join(__dirname, '../../lua/confirm_deduct.lua'), 'utf8'),
+  confirmSegment: fs.readFileSync(path.join(__dirname, '../../lua/confirm_segment.lua'), 'utf8'),
+  rateLimiter: fs.readFileSync(path.join(__dirname, '../../lua/rate_limiter.lua'), 'utf8'),
 };
 
 class RedisClient {
@@ -43,9 +44,13 @@ class RedisClient {
   }
 
   private defineCommands() {
-    for (const [name, script] of Object.entries(luaScripts)) {
-      this.client.defineCommand(name, { numberOfKeys: 2, lua: script });
-    }
+    this.client.defineCommand('preDeduct', { numberOfKeys: 2, lua: luaScripts.preDeduct });
+    this.client.defineCommand('rollback', { numberOfKeys: 2, lua: luaScripts.rollback });
+    this.client.defineCommand('segmentDeduct', { numberOfKeys: 2, lua: luaScripts.segmentDeduct });
+    this.client.defineCommand('segmentRollback', { numberOfKeys: 2, lua: luaScripts.segmentRollback });
+    this.client.defineCommand('confirmDeduct', { numberOfKeys: 3, lua: luaScripts.confirmDeduct });
+    this.client.defineCommand('confirmSegment', { numberOfKeys: 2, lua: luaScripts.confirmSegment });
+    this.client.defineCommand('rateLimiter', { numberOfKeys: 1, lua: luaScripts.rateLimiter });
   }
 
   getClient(): Redis {
@@ -95,10 +100,18 @@ class RedisClient {
     return result;
   }
 
-  async confirmDeduct(skuId: string, txId: string, quantity: number): Promise<number> {
-    const key = `inventory:stock:${skuId}`;
+  async confirmDeduct(skuId: string, txId: string): Promise<number> {
+    const stockKey = `inventory:stock:${skuId}`;
     const txKey = `inventory:tx:${skuId}`;
-    const result = await (this.client as any).confirmDeduct(key, txKey, quantity);
+    const soldKey = `inventory:sold:${skuId}`;
+    const result = await (this.client as any).confirmDeduct(stockKey, txKey, soldKey, txId);
+    return result;
+  }
+
+  async confirmSegmentTx(skuId: string, txId: string): Promise<number> {
+    const txKey = `inventory:tx:${skuId}`;
+    const soldKey = `inventory:sold:${skuId}`;
+    const result = await (this.client as any).confirmSegment(txKey, soldKey, txId);
     return result;
   }
 
@@ -119,6 +132,11 @@ class RedisClient {
     }
     const stock = await this.client.get(`inventory:stock:${skuId}`);
     return parseInt(stock || '0', 10);
+  }
+
+  async getSoldCount(skuId: string): Promise<number> {
+    const sold = await this.client.get(`inventory:sold:${skuId}`);
+    return parseInt(sold || '0', 10);
   }
 
   async initStock(skuId: string, totalStock: number, segmentCount: number): Promise<void> {

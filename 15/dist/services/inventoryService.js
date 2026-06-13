@@ -106,11 +106,25 @@ class InventoryService {
     }
     async confirm(txId, skuId, quantity) {
         const log = (0, logger_1.createChildLogger)({ txId, skuId, quantity });
+        const startTime = Date.now();
         try {
-            const redis = redis_1.redisClient.getClient();
-            await redis.hdel(`inventory:tx:${skuId}`, txId);
-            log.info({ txId, quantity }, 'Transaction confirmed, TX record cleaned');
+            const isHot = segmentLock_1.segmentLockService.isHotItem(skuId);
+            let confirmedQty;
+            if (isHot) {
+                confirmedQty = await redis_1.redisClient.confirmSegmentTx(skuId, txId);
+            }
+            else {
+                confirmedQty = await redis_1.redisClient.confirmDeduct(skuId, txId);
+            }
+            if (confirmedQty < 0) {
+                log.warn({ txId }, 'Confirm failed: TX record not found, may already be confirmed or rolled back');
+                metrics_1.metrics.increment('confirm.tx_not_found', { skuId });
+                return false;
+            }
+            const latencyMs = Date.now() - startTime;
+            log.info({ txId, confirmedQty, latencyMs, isHot }, 'Transaction confirmed: TX cleaned + sold counter incremented');
             metrics_1.metrics.increment('confirm.success', { skuId });
+            metrics_1.metrics.timing('confirm.latency', latencyMs, { skuId });
             return true;
         }
         catch (err) {
@@ -129,9 +143,11 @@ class InventoryService {
         else {
             available = await redis_1.redisClient.getStock(skuId);
         }
+        const sold = await redis_1.redisClient.getSoldCount(skuId);
         return {
             skuId,
             available,
+            sold,
             segmentCount: segCount,
             isHot,
         };

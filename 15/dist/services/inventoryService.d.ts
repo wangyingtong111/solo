@@ -22,6 +22,7 @@ export interface DeductResponse {
 export interface StockQueryResponse {
     skuId: string;
     available: number;
+    sold: number;
     segmentCount: number;
     isHot: boolean;
 }

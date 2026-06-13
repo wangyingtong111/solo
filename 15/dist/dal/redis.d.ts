@@ -12,9 +12,11 @@ declare class RedisClient {
     rollback(skuId: string, txId: string): Promise<number>;
     segmentDeduct(skuId: string, txId: string, quantity: number, segmentCount: number, expireMs: number): Promise<number>;
     segmentRollback(skuId: string, txId: string, segmentCount: number): Promise<number>;
-    confirmDeduct(skuId: string, txId: string, quantity: number): Promise<number>;
+    confirmDeduct(skuId: string, txId: string): Promise<number>;
+    confirmSegmentTx(skuId: string, txId: string): Promise<number>;
     checkRateLimit(merchantId: string, limit: number, windowMs: number): Promise<boolean>;
     getStock(skuId: string, segmentCount?: number): Promise<number>;
+    getSoldCount(skuId: string): Promise<number>;
     initStock(skuId: string, totalStock: number, segmentCount: number): Promise<void>;
     setMerchantRateLimit(merchantId: string, limit: number, windowMs: number): Promise<void>;
     getMerchantRateLimit(merchantId: string): Promise<{

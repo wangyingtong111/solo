@@ -32,6 +32,7 @@ export interface DeductResponse {
 export interface StockQueryResponse {
   skuId: string;
   available: number;
+  sold: number;
   segmentCount: number;
   isHot: boolean;
 }
@@ -138,13 +139,28 @@ export class InventoryService {
 
   async confirm(txId: string, skuId: string, quantity: number): Promise<boolean> {
     const log = createChildLogger({ txId, skuId, quantity });
+    const startTime = Date.now();
 
     try {
-      const redis = redisClient.getClient();
-      await redis.hdel(`inventory:tx:${skuId}`, txId);
+      const isHot = segmentLockService.isHotItem(skuId);
+      let confirmedQty: number;
 
-      log.info({ txId, quantity }, 'Transaction confirmed, TX record cleaned');
+      if (isHot) {
+        confirmedQty = await redisClient.confirmSegmentTx(skuId, txId);
+      } else {
+        confirmedQty = await redisClient.confirmDeduct(skuId, txId);
+      }
+
+      if (confirmedQty < 0) {
+        log.warn({ txId }, 'Confirm failed: TX record not found, may already be confirmed or rolled back');
+        metrics.increment('confirm.tx_not_found', { skuId });
+        return false;
+      }
+
+      const latencyMs = Date.now() - startTime;
+      log.info({ txId, confirmedQty, latencyMs, isHot }, 'Transaction confirmed: TX cleaned + sold counter incremented');
       metrics.increment('confirm.success', { skuId });
+      metrics.timing('confirm.latency', latencyMs, { skuId });
 
       return true;
     } catch (err: any) {
@@ -165,9 +181,12 @@ export class InventoryService {
       available = await redisClient.getStock(skuId);
     }
 
+    const sold = await redisClient.getSoldCount(skuId);
+
     return {
       skuId,
       available,
+      sold,
       segmentCount: segCount,
       isHot,
     };

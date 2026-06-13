@@ -1,6 +1,5 @@
-local stock_key = KEYS[1]
-local tx_key = KEYS[2]
-local sold_key = KEYS[3]
+local tx_key = KEYS[1]
+local sold_key = KEYS[2]
 local tx_id = ARGV[1]
 
 local quantity = redis.call('HGET', tx_key, tx_id)
