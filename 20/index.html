@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时高模减面工具 - Realtime Mesh Decimator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #eaeaea; overflow: hidden; }
+        #container { display: flex; height: 100vh; }
+        #viewport { flex: 1; position: relative; }
+        #canvas-container { width: 100%; height: 100%; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #sidebar { width: 320px; background: #16213e; padding: 20px; overflow-y: auto; border-left: 1px solid #0f3460; }
+        h1 { font-size: 18px; margin-bottom: 20px; color: #e94560; font-weight: 600; }
+        h2 { font-size: 14px; margin: 16px 0 8px; color: #00d9ff; text-transform: uppercase; letter-spacing: 1px; }
+        .section { background: #0f3460; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-bottom: 8px; }
+        .btn-primary { background: linear-gradient(135deg, #e94560, #ff6b6b); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4); }
+        .btn-primary:disabled { background: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-secondary { background: #0f3460; color: #eaeaea; border: 1px solid #00d9ff; }
+        .btn-secondary:hover { background: #1a4a7a; }
+        input[type="file"] { display: none; }
+        .slider-group { margin-bottom: 10px; }
+        label { display: block; font-size: 12px; margin-bottom: 4px; color: #aaa; }
+        input[type="range"] { width: 100%; height: 4px; background: #0f3460; border-radius: 2px; outline: none; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #e94560; border-radius: 50%; cursor: pointer; }
+        .value { float: right; color: #00d9ff; font-weight: 600; }
+        .stats { font-size: 12px; line-height: 1.8; }
+        .stats span { color: #00d9ff; float: right; }
+        .progress-bar { width: 100%; height: 8px; background: #0f3460; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #e94560, #00d9ff); width: 0%; transition: width 0.3s; }
+        .status-text { font-size: 12px; color: #aaa; text-align: center; margin-top: 8px; }
+        .checkbox-group { display: flex; align-items: center; margin: 8px 0; }
+        .checkbox-group input { margin-right: 8px; }
+        .error-legend { display: flex; align-items: center; justify-content: space-around; margin-top: 8px; padding: 8px; background: #0a0a1a; border-radius: 4px; font-size: 11px; }
+        .error-color { width: 20px; height: 12px; border-radius: 2px; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; z-index: 100; }
+        .spinner { border: 3px solid #0f3460; border-top: 3px solid #e94560; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #performance-metrics { font-family: 'Consolas', monospace; font-size: 11px; }
+        .metric-row { display: flex; justify-content: space-between; padding: 2px 0; }
+        .metric-pass { color: #4ade80; }
+        .metric-fail { color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="viewport">
+            <div id="canvas-container"></div>
+            <div id="overlay">
+                <canvas id="error-overlay"></canvas>
+            </div>
+            <div id="loading">
+                <div class="spinner"></div>
+                <div id="loading-text">处理中...</div>
+            </div>
+        </div>
+        <div id="sidebar">
+            <h1>⚡ 实时高模减面工具</h1>
+            
+            <div class="section">
+                <h2>模型导入</h2>
+                <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📂 选择模型文件</button>
+                <input type="file" id="file-input" accept=".obj,.gltf,.glb">
+                <button class="btn btn-secondary" onclick="loadDemoModel()">🎯 加载测试模型</button>
+            </div>
+            
+            <div class="section">
+                <h2>原始模型信息</h2>
+                <div class="stats" id="original-stats">
+                    <div>三角面数: <span id="orig-faces">-</span></div>
+                    <div>顶点数: <span id="orig-verts">-</span></div>
+                    <div>UV层数: <span id="orig-uvs">-</span></div>
+                    <div>纹理数: <span id="orig-textures">-</span></div>
+                    <div>包围盒: <span id="orig-bbox">-</span></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>减面参数</h2>
+                <div class="slider-group">
+                    <label>目标面数 <span class="value" id="target-faces-value">50000</span></label>
+                    <input type="range" id="target-faces" min="1000" max="200000" value="50000" step="1000">
+                </div>
+                <div class="slider-group">
+                    <label>硬边保护角度 (°) <span class="value" id="hard-angle-value">60</span></label>
+                    <input type="range" id="hard-angle" min="0" max="180" value="60" step="5">
+                </div>
+                <div class="slider-group">
+                    <label>UV接缝强度 <span class="value" id="uv-seam-value">1.0</span></label>
+                    <input type="range" id="uv-seam" min="0" max="2" value="1" step="0.1">
+                </div>
+                <div class="slider-group">
+                    <label>纹理误差阈值 (px) <span class="value" id="texture-error-value">2</span></label>
+                    <input type="range" id="texture-error" min="0.5" max="5" value="2" step="0.5">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="preserve-borders" checked>
+                    <label for="preserve-borders">保护边界边</label>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="decimate-btn" onclick="startDecimation()" disabled>⚡ 一键减面</button>
+            
+            <div class="section">
+                <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+                <div class="status-text" id="status-text">等待模型加载...</div>
+            </div>
+            
+            <div class="section">
+                <h2>减面结果</h2>
+                <div class="stats" id="result-stats">
+                    <div>三角面数: <span id="res-faces">-</span></div>
+                    <div>压缩比: <span id="res-ratio">-</span></div>
+                    <div>执行时间: <span id="res-time">-</span></div>
+                    <div>内存增量: <span id="res-memory">-</span></div>
+                    <div>几何误差: <span id="res-geo-error">-</span></div>
+                    <div>纹理误差: <span id="res-tex-error">-</span></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>性能指标</h2>
+                <div id="performance-metrics">
+                    <div class="metric-row">
+                        <span>执行时间 ≤ 2s</span>
+                        <span id="perf-time">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>内存增量 ≤ 200MB</span>
+                        <span id="perf-memory">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>纹理误差 ≤ 2px</span>
+                        <span id="perf-texture">-</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>目标面数 ≤ 5万</span>
+                        <span id="perf-faces">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>显示选项</h2>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-original" checked onchange="toggleOriginal()">
+                    <label for="show-original">显示原始模型 (半透明)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-decimated" checked onchange="toggleDecimated()">
+                    <label for="show-decimated">显示减面模型</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-error" checked onchange="toggleErrorOverlay()">
+                    <label for="show-error">误差可视化</label>
+                </div>
+                <div class="slider-group">
+                    <label>误差阈值 (%) <span class="value" id="error-threshold-value">0.1</span></label>
+                    <input type="range" id="error-threshold" min="0.01" max="1" value="0.1" step="0.01">
+                </div>
+                <div class="error-legend">
+                    <div style="text-align:center">
+                        <div class="error-color" style="background: #22c55e"></div>
+                        <div>0%</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div class="error-color" style="background: #eab308"></div>
+                        <div>0.05%</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div class="error-color" style="background: #ef4444"></div>
+                        <div>≥0.1%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <button class="btn btn-secondary" onclick="exportModel()">💾 导出模型</button>
+                <button class="btn btn-secondary" onclick="resetScene()">🔄 重置场景</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./lib/three.module.js"
+        }
+    }
+    </script>
+    <script src="lib/three.min.js?v=2"></script>
+    <script type="module">
+        import * as THREE_MOD from './lib/three.module.js';
+        import { OrbitControls } from './lib/OrbitControls.js';
+        import { OBJLoader } from './lib/OBJLoader.js';
+        import { GLTFLoader } from './lib/GLTFLoader.js';
+        
+        window.THREE_MODULE = THREE_MOD;
+        window.THREE.OrbitControls = OrbitControls;
+        window.THREE.OBJLoader = OBJLoader;
+        window.THREE.GLTFLoader = GLTFLoader;
+        window.THREE.Vector2 = THREE_MOD.Vector2;
+        window.THREE.Vector3 = THREE_MOD.Vector3;
+        window.THREE.Matrix4 = THREE_MOD.Matrix4;
+        window.THREE.Euler = THREE_MOD.Euler;
+        window.THREE.Quaternion = THREE_MOD.Quaternion;
+        window.THREE.Spherical = THREE_MOD.Spherical;
+        window.THREE.MOUSE = THREE_MOD.MOUSE;
+        window.THREE.TOUCH = THREE_MOD.TOUCH;
+        window.THREE.EventDispatcher = THREE_MOD.EventDispatcher;
+        
+        window.__modulesLoaded = true;
+    </script>
+    <script src="app.js?v=13"></script>
+</body>
+</html>
