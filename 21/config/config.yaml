@@ -1,0 +1,120 @@
+system:
+  name: "RealTime3DReconstruction"
+  version: "1.0.0"
+  target_fps: 15
+  max_latency_ms: 1000
+  gpu_enabled: true
+  gpu_device: 0
+
+cameras:
+  count: 3
+  resolution: [1920, 1080]
+  fps: 30
+  device_ids: [0, 1, 2]
+  sync_timeout_ms: 10
+  exposure: -4
+  gain: 1.0
+  white_balance: 4000
+  calibration_file: "config/camera_calib.json"
+
+background:
+  method: "multimodal"
+  learning_rate: 0.005
+  history_frames: 500
+  var_threshold: 25.0
+  detect_shadows: false
+  morphology_kernel_size: 5
+  temporal_smoothing: 3
+  min_contour_area: 100
+  max_background_change_ratio: 0.05
+
+reconstruction:
+  tsdf_voxel_size: 0.002
+  tsdf_truncation_distance: 0.01
+  tsdf_integration_weight: 1.0
+  volume_bounds: [[-0.3, 0.3], [-0.3, 0.3], [-0.3, 0.3]]
+  max_vertices: 50000
+  max_triangles: 100000
+  integration_rate: 15
+  surface_extraction_rate: 15
+  gpu_acceleration: true
+
+pipeline:
+  target_fps: 15
+  max_latency_ms: 1000
+  queue_size: 5
+  enable_visualization: true
+  enable_mesh_optimization: true
+  enable_texture: true
+  enable_export: true
+
+mesh_optimization:
+  enabled: true
+  enable_manifold: true
+  remesh_target_edge_length: 0.003
+  smooth_iterations: 2
+  hole_filling_max_iterations: 100
+  decimation_ratio: 0.8
+  target_vertices: 45000
+
+export:
+  enabled: true
+  export_dir: "exports"
+  glb_format: "2.0"
+  include_normals: true
+  include_texcoords: true
+  compress_textures: true
+  texture_format: "jpeg"
+  texture_quality: 95
+  async_export: true
+  export_queue_size: 3
+
+visualization:
+  enabled: true
+  show_views: true
+  show_mesh: true
+  show_background_mask: true
+  mesh_color: [0.8, 0.8, 0.8]
+  background_color: [0.1, 0.1, 0.1]
+  window_size: [1280, 720]
+
+texture:
+  resolution: 2048
+  filtering: "bilinear"
+  mipmap: true
+  blend_mode: "average"
+  view_angle_threshold: 60
+  max_texture_size: 2048
+  min_texture_size: 256
+
+mesh_optimization:
+  enable_manifold: true
+  remesh_target_edge_length: 0.003
+  smooth_iterations: 2
+  hole_filling_max_iterations: 100
+  decimation_ratio: 0.8
+  target_vertices: 45000
+
+export:
+  glb_format: "2.0"
+  include_normals: true
+  include_texcoords: true
+  compress_textures: true
+  texture_format: "jpeg"
+  texture_quality: 95
+  async_export: true
+  export_queue_size: 3
+
+visualization:
+  show_views: true
+  show_mesh: true
+  show_background_mask: true
+  mesh_color: [0.8, 0.8, 0.8]
+  background_color: [0.1, 0.1, 0.1]
+  window_size: [1280, 720]
+
+logging:
+  level: "INFO"
+  log_file: "logs/reconstruction.log"
+  log_metrics: true
+  metrics_interval: 5
